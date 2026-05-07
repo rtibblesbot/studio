@@ -7,16 +7,13 @@ import VueRouter from 'vue-router';
 import Vuex from 'vuex';
 import KThemePlugin from 'kolibri-design-system/lib/KThemePlugin';
 import '@testing-library/jest-dom';
-import 'shared/i18n/setup';
 // Polyfill structured clone for indexeddb with JSDOM
 import "core-js/stable/structured-clone";
 // Polyfill indexeddb
 import 'fake-indexeddb/auto';
 // Polyfill webstreams
 import {ReadableStream, WritableStream, TransformStream, CountQueuingStrategy} from 'web-streams-polyfill';
-import jquery from 'jquery';
 
-window.jQuery = window.$ = jquery;
 window.ReadableStream = global.ReadableStream = ReadableStream;
 window.WritableStream = global.WritableStream = WritableStream;
 window.TransformStream = global.TransformStream = TransformStream;
@@ -62,8 +59,6 @@ Vue.use(AnalyticsPlugin, { dataLayer: [] });
 // Register global components
 Vue.component('ActionLink', ActionLink);
 
-i18nSetup(true);
-
 Vue.config.silent = true;
 Vue.config.devtools = false;
 Vue.config.productionTip = false;
@@ -95,6 +90,16 @@ jest.setTimeout(10000); // 10 sec
 
 Object.defineProperty(window, 'scrollTo', { value: () => {}, writable: true });
 
+
 resetJestGlobal();
 
 setupSchema();
+
+// Use of setImmediate by fake-indexeddb makes tests fail with inactive or premature transaction
+// commit errors. This has something to do with microtasks, but since our code works correctly
+// in the browser, this seems specific to node.js and how fake-indexeddb works.
+global.setImmediate = global.setImmediate || ((fn, ...args) => global.setTimeout(fn, 0, ...args));
+
+module.exports = async function () {
+  await i18nSetup(true);
+};

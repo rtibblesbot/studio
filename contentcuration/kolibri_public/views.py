@@ -33,16 +33,23 @@ from django_filters.rest_framework import FilterSet
 from django_filters.rest_framework import NumberFilter
 from django_filters.rest_framework import UUIDFilter
 from kolibri_public import models
-from kolibri_public.search import get_available_metadata_labels
+from kolibri_public.search import get_channel_available_metadata_labels
+from kolibri_public.search import get_contentnode_available_metadata_labels
 from kolibri_public.stopwords import stopwords_set
 from le_utils.constants import content_kinds
+from le_utils.constants import library as library_constants
 from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from contentcuration.middleware.locale import locale_exempt
 from contentcuration.middleware.session import session_exempt
+from contentcuration.models import ChannelVersion
+from contentcuration.models import Country
 from contentcuration.models import generate_storage_url
+from contentcuration.utils.pagination import CachedListPagination
 from contentcuration.utils.pagination import ValuesViewsetCursorPagination
 from contentcuration.viewsets.base import BaseValuesViewset
 from contentcuration.viewsets.base import ReadOnlyValuesViewset
@@ -82,13 +89,51 @@ def metadata_cache(some_func):
 MODALITIES = set(["QUIZ"])
 
 
+def bitmask_contains_and(queryset, name, value):
+    """
+    A filtering method that filters instances matching all provided
+    comma-separated values using bitmask fields on the model.
+    """
+    return queryset.has_all_labels(name, value.split(","))
+
+
+class UUIDInFilter(BaseInFilter, UUIDFilter):
+    pass
+
+
+class CharInFilter(BaseInFilter, CharFilter):
+    pass
+
+
 class ChannelMetadataFilter(FilterSet):
+    def __init__(self, data=None, *args, **kwargs):
+        # if filterset is bound, use initial values as defaults
+        if data is not None:
+            data = data.copy()
+            for name, f in self.base_filters.items():
+                initial = f.extra.get("initial")
+                # filter param is either missing or empty, use initial as default
+                if not data.get(name) and initial:
+                    data[name] = initial
+        super().__init__(data, *args, **kwargs)
+
     available = BooleanFilter(method="filter_available", label="Available")
     has_exercise = BooleanFilter(method="filter_has_exercise", label="Has exercises")
+    categories = CharFilter(method=bitmask_contains_and, label="Categories")
+    countries = CharInFilter(field_name="countries", label="Countries")
+    public = BooleanFilter(field_name="public", label="Public", initial=True)
+    languages = CharInFilter(field_name="included_languages__id", label="Languages")
 
     class Meta:
         model = models.ChannelMetadata
-        fields = ("available", "has_exercise")
+        fields = (
+            "available",
+            "has_exercise",
+            "categories",
+            "countries",
+            "public",
+            "languages",
+        )
 
     def filter_has_exercise(self, queryset, name, value):
         queryset = queryset.annotate(
@@ -107,11 +152,22 @@ class ChannelMetadataFilter(FilterSet):
         return queryset.filter(root__available=value)
 
 
+class ChannelMetadataListPagination(CachedListPagination):
+    page_size = None
+    page_size_query_param = "page_size"
+    max_page_size = 1000
+
+
 @method_decorator(metadata_cache, name="dispatch")
 class ChannelMetadataViewSet(ReadOnlyValuesViewset):
-    filter_backends = (DjangoFilterBackend,)
+    filter_backends = (
+        SearchFilter,
+        DjangoFilterBackend,
+    )
     # Update from filter_class to filterset_class for newer version of Django Filters
     filterset_class = ChannelMetadataFilter
+    pagination_class = ChannelMetadataListPagination
+    search_fields = ("name",)
     # Add an explicit allow any permission class to override the Studio default
     permission_classes = (AllowAny,)
 
@@ -133,6 +189,7 @@ class ChannelMetadataViewSet(ReadOnlyValuesViewset):
         "public",
         "total_resource_count",
         "published_size",
+        "categories",
     )
 
     field_map = {
@@ -145,9 +202,13 @@ class ChannelMetadataViewSet(ReadOnlyValuesViewset):
     }
 
     def get_queryset(self):
-        return models.ChannelMetadata.objects.all()
+        return models.ChannelMetadata.objects.all().order_by("name")
 
     def consolidate(self, items, queryset):
+        # Only keep a single item for every channel ID, to get rid of possible
+        # duplicates caused by filtering
+        items = list(OrderedDict((item["id"], item) for item in items).values())
+
         included_languages = {}
         for (
             channel_id,
@@ -160,18 +221,57 @@ class ChannelMetadataViewSet(ReadOnlyValuesViewset):
             if channel_id not in included_languages:
                 included_languages[channel_id] = []
             included_languages[channel_id].append(language_id)
+
+        channel_versions_q = Q()
+
+        # Getting channel tokens in the consolidate method instead of doing it in the annotate method
+        # to make invisible the difference in the representation between public and private models UUIDFields
+        for channel in items:
+            channel_versions_q |= Q(
+                channel_id=channel["id"], version=channel["version"]
+            )
+
+        channel_tokens = {}
+
+        for channel_version in ChannelVersion.objects.filter(channel_versions_q).values(
+            "channel_id", "secret_token__token"
+        ):
+            channel_tokens[channel_version["channel_id"]] = channel_version[
+                "secret_token__token"
+            ]
+
+        countries = {}
+        for (channel_id, country_code) in Country.objects.filter(
+            public_channels__in=queryset
+        ).values_list("public_channels", "code"):
+            if channel_id not in countries:
+                countries[channel_id] = []
+            countries[channel_id].append(country_code)
+
         for item in items:
             item["included_languages"] = included_languages.get(item["id"], [])
+            item["countries"] = countries.get(item["id"], [])
+            item["token"] = channel_tokens.get(item["id"])
             item["last_published"] = item["last_updated"]
+            # v2 non-public channels are always community library channels (unlike v1
+            # channel tokens, which return null for non-public channels).
+            item["library"] = (
+                library_constants.KOLIBRI
+                if item["public"]
+                else library_constants.COMMUNITY
+            )
+
         return items
 
-
-class UUIDInFilter(BaseInFilter, UUIDFilter):
-    pass
-
-
-class CharInFilter(BaseInFilter, CharFilter):
-    pass
+    @action(detail=False, methods=["get"])
+    def labels(self, request):
+        """
+        Returns available filter option values for the channel list.
+        The response is an object with keys for each filterable field, each
+        containing the set of values present across the filtered queryset.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        return Response(get_channel_available_metadata_labels(queryset))
 
 
 contentnode_filter_fields = [
@@ -228,12 +328,12 @@ class ContentNodeFilter(FilterSet):
     parent__isnull = BooleanFilter(field_name="parent", lookup_expr="isnull")
     include_coach_content = BooleanFilter(method="filter_include_coach_content")
     contains_quiz = CharFilter(method="filter_contains_quiz")
-    grade_levels = CharFilter(method="bitmask_contains_and")
-    resource_types = CharFilter(method="bitmask_contains_and")
-    learning_activities = CharFilter(method="bitmask_contains_and")
-    accessibility_labels = CharFilter(method="bitmask_contains_and")
-    categories = CharFilter(method="bitmask_contains_and")
-    learner_needs = CharFilter(method="bitmask_contains_and")
+    grade_levels = CharFilter(method=bitmask_contains_and)
+    resource_types = CharFilter(method=bitmask_contains_and)
+    learning_activities = CharFilter(method=bitmask_contains_and)
+    accessibility_labels = CharFilter(method=bitmask_contains_and)
+    categories = CharFilter(method=bitmask_contains_and)
+    learner_needs = CharFilter(method=bitmask_contains_and)
     keywords = CharFilter(method="filter_keywords")
     channels = UUIDInFilter(field_name="channel_id")
     languages = CharInFilter(field_name="lang_id")
@@ -343,9 +443,6 @@ class ContentNodeFilter(FilterSet):
         )
 
         return queryset.filter(query)
-
-    def bitmask_contains_and(self, queryset, name, value):
-        return queryset.has_all_labels(name, value.split(","))
 
 
 def map_file(file):
@@ -533,7 +630,10 @@ class OptionalContentNodePagination(ValuesViewsetCursorPagination):
                 [
                     ("more", self.get_more()),
                     ("results", data),
-                    ("labels", get_available_metadata_labels(self.queryset)),
+                    (
+                        "labels",
+                        get_contentnode_available_metadata_labels(self.queryset),
+                    ),
                 ]
             )
         )

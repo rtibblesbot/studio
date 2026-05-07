@@ -76,6 +76,8 @@ user_fields = (
     "clipboard_tree_id",
     "policies",
     "feature_flags",
+    "newest_notification_date",
+    "last_read_notification_date",
 )
 
 
@@ -85,6 +87,7 @@ def current_user_for_context(user):
 
     user_data = {field: getattr(user, field) for field in user_fields}
 
+    user_data["disk_space"] = user.get_effective_disk_space()
     user_data["user_rev"] = user.get_server_rev()
 
     return json_for_parse_from_data(user_data)

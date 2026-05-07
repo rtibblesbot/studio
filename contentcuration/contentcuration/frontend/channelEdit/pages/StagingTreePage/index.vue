@@ -227,7 +227,7 @@
             </VBtn>
 
             <VBtn
-              v-if="false"
+              v-if="showDraftMode"
               color="primary"
               data-test="display-publish-draft-dialog-btn"
               @click="displayPublishDraftDialog = true"
@@ -365,6 +365,7 @@
   import MainNavigationDrawer from 'shared/views/MainNavigationDrawer';
   import OfflineText from 'shared/views/OfflineText';
   import { Channel } from 'shared/data/resources';
+  import { FeatureFlagKeys } from 'shared/constants';
 
   export default {
     name: 'StagingTreePage',
@@ -409,7 +410,7 @@
       };
     },
     computed: {
-      ...mapGetters(['isCompactViewMode']),
+      ...mapGetters(['isCompactViewMode', 'hasFeatureEnabled']),
       ...mapGetters('currentChannel', [
         'currentChannel',
         'rootId',
@@ -492,6 +493,9 @@
       fileSizeDiff() {
         return this.fileSizeStaged - this.fileSizeLive;
       },
+      showDraftMode() {
+        return this.hasFeatureEnabled(FeatureFlagKeys.draft_channels);
+      },
     },
     watch: {
       nodeId(newNodeId) {
@@ -553,7 +557,7 @@
       ...mapActions('currentChannel', [
         'loadCurrentChannelStagingDiff',
         'deployCurrentChannel',
-        'publishDraftChannel',
+        'publishStagingChannel',
         'reloadCurrentChannelStagingDiff',
       ]),
       ...mapActions('currentChannel', { loadCurrentChannel: 'loadChannel' }),
@@ -647,8 +651,7 @@
         this.displayPublishDraftDialog = false;
         this.isPublishingDraft = true;
 
-        this.publishDraftChannel()
-          .then(publishDraftchange => Channel.waitForPublishingDraft(publishDraftchange))
+        this.publishStagingChannel()
           .then(() => {
             this.isPublishingDraft = false;
             this.showSnackbar({
