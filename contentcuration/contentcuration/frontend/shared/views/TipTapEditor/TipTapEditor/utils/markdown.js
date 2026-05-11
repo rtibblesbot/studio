@@ -39,6 +39,11 @@ export const paramsToImageMd = ({ src, alt, width, height, permanentSrc, textAli
   return `![${alt || ''}](${IMAGE_PLACEHOLDER}/${fileName}${alignSuffix})`;
 };
 
+// --- Underline Translation ---
+// Perseus simple-markdown treats __text__ as <u>; marked treats it as <strong>.
+// Rewrite before marked runs so the round-trip preserves underline.
+export const UNDERLINE_REGEX = /__([\s\S]+?)__(?!_)/g;
+
 // --- Math/Formula Translation ---
 export const MATH_REGEX = /\$\$([^$]+)\$\$/g;
 
@@ -150,6 +155,8 @@ export function preprocessMarkdown(markdown) {
     if (!params) return match;
     return `<span data-latex="${params.latex}"></span>`;
   });
+
+  processedMarkdown = processedMarkdown.replace(UNDERLINE_REGEX, '<u>$1</u>');
 
   return marked(processedMarkdown);
 }

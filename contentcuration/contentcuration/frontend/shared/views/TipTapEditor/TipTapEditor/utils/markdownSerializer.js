@@ -24,7 +24,7 @@ export const createCustomMarkdownSerializer = editor => {
             trimmedText = `*${trimmedText}*`;
             break;
           case 'underline':
-            trimmedText = `<u>${trimmedText}</u>`;
+            trimmedText = `__${trimmedText}__`;
             break;
           case 'strike':
             trimmedText = `~~${trimmedText}~~`;
