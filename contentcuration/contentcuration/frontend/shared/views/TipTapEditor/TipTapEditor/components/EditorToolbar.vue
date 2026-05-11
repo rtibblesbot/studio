@@ -386,7 +386,9 @@
       // Categories that can overflow (in order of overflow priority)
       const OVERFLOW_CATEGORIES = [
         'insert',
-        'script',
+        // Perseus flavoured markdown does not support super and sub script,
+        // so we disable this for now until we stop using markdown as the primary target
+        // 'script',
         'lists',
         'clearFormat',
         'align',
