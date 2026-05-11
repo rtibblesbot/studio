@@ -209,7 +209,7 @@ describe('createCustomMarkdownSerializer', () => {
       expect(getMarkdown()).toBe('*' + '**bold and italic**' + '*');
     });
 
-    it('should serialize an underlined node with a <u> tag', () => {
+    it('should serialize an underlined node with __ delimiters (Perseus syntax)', () => {
       const docContent = [
         {
           type: 'paragraph',
@@ -224,7 +224,7 @@ describe('createCustomMarkdownSerializer', () => {
       ];
       const mockEditor = createMockEditor(docContent);
       const getMarkdown = createCustomMarkdownSerializer(mockEditor);
-      expect(getMarkdown()).toBe('<u>underlined</u>');
+      expect(getMarkdown()).toBe('__underlined__');
     });
 
     it('should serialize a link node correctly', () => {
