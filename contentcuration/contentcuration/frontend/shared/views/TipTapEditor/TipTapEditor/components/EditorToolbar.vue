@@ -391,7 +391,9 @@
         // 'script',
         'lists',
         'clearFormat',
-        'align',
+        // Perseus flavoured markdown does not support alignment,
+        // so we disable this for now until we stop using markdown as the primary target
+        // 'align',
         'clipboard',
         'textFormat',
       ];
