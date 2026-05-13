@@ -468,8 +468,9 @@ class ChannelViewSet(ValuesViewset):
         try:
             self.perform_create(serializer)
 
-        except IntegrityError as e:
-            return Response({"error": str(e)}, status=409)
+        except IntegrityError:
+            logging.exception("Integrity error creating channel")
+            return Response({"error": "Channel could not be created"}, status=409)
         instance = serializer.instance
         Change.create_change(
             generate_create_event(
