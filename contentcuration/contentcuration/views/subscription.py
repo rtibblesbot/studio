@@ -79,9 +79,9 @@ class CreateCheckoutSessionView(APIView):
 
             return Response({"checkout_url": session.url})
 
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating checkout session: {e}")
-            return Response({"error": str(e)}, status=400)
+        except stripe.error.StripeError:
+            logger.exception("Stripe error creating checkout session")
+            return Response({"error": "Unable to create checkout session"}, status=400)
 
 
 class CreatePortalSessionView(APIView):
@@ -105,9 +105,9 @@ class CreatePortalSessionView(APIView):
             )
             return Response({"portal_url": session.url})
 
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating portal session: {e}")
-            return Response({"error": str(e)}, status=400)
+        except stripe.error.StripeError:
+            logger.exception("Stripe error creating portal session")
+            return Response({"error": "Unable to create portal session"}, status=400)
 
 
 class SubscriptionStatusView(APIView):
