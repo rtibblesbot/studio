@@ -53,9 +53,10 @@
               :label="$tr('passwordLabel')"
             />
             <p>
-              <ActionLink
+              <KRouterLink
                 :to="{ name: 'ForgotPassword' }"
                 :text="$tr('forgotPasswordLink')"
+                appearance="basic-link"
               />
             </p>
             <KButton
@@ -75,9 +76,10 @@
           </VForm>
           <VDivider />
           <p class="mt-4 text-xs-center">
-            <ActionLink
-              href="/channels"
+            <KButton
+              href="/channels/#public"
               :text="$tr('guestModeLink')"
+              appearance="basic-link"
             />
           </p>
         </VCard>
@@ -87,21 +89,25 @@
 
         <p class="links mt-3 text-xs-center">
           <span>
-            <ActionLink
+            <KButton
               :text="$tr('privacyPolicyLink')"
+              appearance="basic-link"
               @click="showPrivacyPolicy"
             />
           </span>
           <span>
-            <ActionLink
+            <KButton
               :text="$tr('TOSLink')"
+              appearance="basic-link"
               @click="showTermsOfService"
             />
           </span>
           <span>
-            <ActionLink
-              :text="$tr('copyright', { year: new Date().getFullYear() })"
+            <KButton
               href="https://learningequality.org/"
+              :text="$tr('copyright', { year: new Date().getFullYear() })"
+              appearance="basic-link"
+              iconAfter="openNewTab"
               target="_blank"
             />
           </span>
@@ -123,6 +129,7 @@
   import PolicyModals from 'shared/views/policies/PolicyModals';
   import { policies } from 'shared/constants';
   import LanguageSwitcherList from 'shared/languageSwitcher/LanguageSwitcherList';
+  import { redirectBrowser } from 'shared/utils/navigation';
 
   export default {
     name: 'AccountsMain',
@@ -170,7 +177,7 @@
             .then(() => {
               this.loginFailedOffline = false;
               this.loginFailed = false;
-              window.location.assign(this.nextParam || window.Urls.channels());
+              redirectBrowser(this.nextParam || window.Urls.channels());
             })
             .catch(err => {
               this.busy = false;

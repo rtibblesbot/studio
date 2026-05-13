@@ -36,7 +36,7 @@ const ChangeTypeMapFields = {
     'excluded_descendants',
   ]),
   [CHANGE_TYPES.PUBLISHED]: commonFields.concat(['version_notes', 'language']),
-  [CHANGE_TYPES.PUBLISHED_NEXT]: commonFields,
+  [CHANGE_TYPES.PUBLISHED_NEXT]: commonFields.concat(['use_staging_tree']),
   [CHANGE_TYPES.SYNCED]: commonFields.concat([
     'titles_and_descriptions',
     'resource_details',
@@ -175,7 +175,12 @@ function handleMaxRevs(response, userId) {
     maxRevs[`${MAX_REV_KEY}.${channelId}`] = channelChanges[0].server_rev;
     const lastChannelEditIndex = findLastIndex(
       channelChanges,
-      c => !c.errors && !c.user_id && c.created_by_id && c.type !== CHANGE_TYPES.PUBLISHED,
+      c =>
+        !c.errors &&
+        !c.user_id &&
+        c.created_by_id &&
+        c.type !== CHANGE_TYPES.PUBLISHED &&
+        !c.unpublishable,
     );
     const lastPublishIndex = findLastIndex(
       channelChanges,

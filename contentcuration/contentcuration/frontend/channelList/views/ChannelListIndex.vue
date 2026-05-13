@@ -55,6 +55,12 @@
           {{ $tr('catalog') }}
         </VTab>
         <VTab
+          :to="communityLibraryLink"
+          @click="communityLibraryTabClick"
+        >
+          {{ communityLibraryLabel$() }}
+        </VTab>
+        <VTab
           :to="channelSetLink"
           @click="channelSetsTabClick"
         >
@@ -63,9 +69,8 @@
       </template>
     </AppBar>
     <VContent>
-      <OfflineText
+      <StudioOfflineAlert
         v-if="!isCatalogPage"
-        toolbar
         :offset="toolbarHeight"
       />
       <VContainer
@@ -75,36 +80,9 @@
       >
         <VContainer
           fluid
-          :class="isCatalogPage ? 'pa-0' : 'pa-4'"
+          class="h-100"
+          :class="isCatalogPage || isCommunityLibraryPage ? 'pa-0' : 'pa-4'"
         >
-          <VLayout
-            row
-            wrap
-            justify-center
-          >
-            <VFlex
-              xs12
-              sm10
-              md8
-              lg6
-            >
-              <VCard
-                v-if="invitationList.length"
-                v-show="isChannelList"
-              >
-                <VList subheader>
-                  <VSubheader>
-                    {{ $tr('invitations', { count: invitationList.length }) }}
-                  </VSubheader>
-                  <ChannelInvitation
-                    v-for="invitation in invitationList"
-                    :key="invitation.id"
-                    :invitationID="invitation.id"
-                  />
-                </VList>
-              </VCard>
-            </VFlex>
-          </VLayout>
           <ChannelListAppError
             v-if="fullPageError"
             :error="fullPageError"
@@ -123,20 +101,15 @@
 <script>
 
   import { mapActions, mapGetters, mapState } from 'vuex';
-  import {
-    RouteNames,
-    ChannelInvitationMapping,
-    ListTypeToRouteMapping,
-    RouteToListTypeMapping,
-  } from '../constants';
+  import { RouteNames, ChannelInvitationMapping, ListTypeToRouteMapping } from '../constants';
   import ChannelListAppError from './ChannelListAppError';
-  import ChannelInvitation from './Channel/ChannelInvitation';
   import { ChannelListTypes } from 'shared/constants';
   import { constantsTranslationMixin, routerMixin } from 'shared/mixins';
   import GlobalSnackbar from 'shared/views/GlobalSnackbar';
   import AppBar from 'shared/views/AppBar';
-  import OfflineText from 'shared/views/OfflineText';
+  import StudioOfflineAlert from 'shared/views/StudioOfflineAlert.vue';
   import PolicyModals from 'shared/views/policies/PolicyModals';
+  import { communityChannelsStrings } from 'shared/strings/communityChannelsStrings';
 
   const CATALOG_PAGES = [
     RouteNames.CATALOG_ITEMS,
@@ -157,13 +130,18 @@
     name: 'ChannelListIndex',
     components: {
       AppBar,
-      ChannelInvitation,
       ChannelListAppError,
       GlobalSnackbar,
       PolicyModals,
-      OfflineText,
+      StudioOfflineAlert,
     },
     mixins: [constantsTranslationMixin, routerMixin],
+    setup() {
+      const { communityLibraryLabel$ } = communityChannelsStrings;
+      return {
+        communityLibraryLabel$,
+      };
+    },
     computed: {
       ...mapState({
         offline: state => !state.connection.online,
@@ -182,8 +160,8 @@
       isCatalogPage() {
         return this.$route.name === RouteNames.CATALOG_ITEMS;
       },
-      currentListType() {
-        return RouteToListTypeMapping[this.$route.name];
+      isCommunityLibraryPage() {
+        return this.$route.name === RouteNames.COMMUNITY_LIBRARY_ITEMS;
       },
       toolbarHeight() {
         return this.loggedIn && !this.isFAQPage ? 112 : 64;
@@ -193,14 +171,6 @@
       },
       lists() {
         return Object.values(ChannelListTypes).filter(l => l !== 'public');
-      },
-      invitationList() {
-        const invitations = this.invitations;
-        return (
-          invitations.filter(
-            i => ChannelInvitationMapping[i.share_mode] === this.currentListType,
-          ) || []
-        );
       },
       invitationsByListCounts() {
         const inviteMap = {};
@@ -217,8 +187,8 @@
       catalogLink() {
         return { name: RouteNames.CATALOG_ITEMS };
       },
-      isChannelList() {
-        return this.lists.includes(this.currentListType);
+      communityLibraryLink() {
+        return { name: RouteNames.COMMUNITY_LIBRARY_ITEMS };
       },
       homeLink() {
         return this.libraryMode ? window.Urls.base() : window.Urls.channels();
@@ -226,14 +196,19 @@
       publicTabClick() {
         return this.trackTabClick.bind(this, ChannelListTypes.PUBLIC);
       },
+      communityLibraryTabClick() {
+        return this.trackTabClick.bind(this, 'COMMUNITY_LIBRARY');
+      },
       channelSetsTabClick() {
         return this.trackTabClick.bind(this, CHANNEL_SETS);
       },
     },
     watch: {
       $route(route) {
-        if (this.loggedIn && route.name === RouteNames.CHANNELS_EDITABLE) {
-          this.loadInvitationList();
+        if (route.name === RouteNames.CHANNELS_EDITABLE) {
+          this.loggedIn
+            ? this.loadInvitationList()
+            : this.$router.replace({ name: RouteNames.CATALOG_ITEMS });
         }
         if (this.fullPageError) {
           this.$store.dispatch('errors/clearError');
@@ -248,9 +223,7 @@
       if (this.loggedIn) {
         this.loadInvitationList();
       } else if (!CATALOG_PAGES.includes(this.$route.name)) {
-        this.$router.push({
-          name: RouteNames.CATALOG_ITEMS,
-        });
+        this.$router.replace({ name: RouteNames.CATALOG_ITEMS });
       }
     },
     mounted() {
@@ -278,6 +251,8 @@
           title = this.translateConstant('bookmark');
         } else if (routeName === RouteNames.CHANNELS_EDITABLE) {
           title = this.translateConstant('edit');
+        } else if (routeName === RouteNames.COMMUNITY_LIBRARY_ITEMS) {
+          title = this.communityLibraryLabel$();
         }
         // Title changes for other routes are handled by other components, since
         // we can access $tr messages only from within the component.
@@ -291,8 +266,7 @@
     },
     $trs: {
       channelSets: 'Collections',
-      catalog: 'Content Library',
-      invitations: 'You have {count, plural,\n =1 {# invitation}\n other {# invitations}}',
+      catalog: 'Kolibri Library',
       libraryTitle: 'Kolibri Content Library Catalog',
       frequentlyAskedQuestions: 'Frequently asked questions',
     },
@@ -335,6 +309,10 @@
 
   .main-container {
     overflow: auto;
+  }
+
+  .h-100 {
+    height: 100%;
   }
 
 </style>

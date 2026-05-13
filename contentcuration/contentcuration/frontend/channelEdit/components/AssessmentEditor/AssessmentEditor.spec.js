@@ -5,8 +5,7 @@ import { assessmentItemKey } from '../../utils';
 import AssessmentEditor from './AssessmentEditor';
 import { AssessmentItemTypes, ValidationErrors, DELAYED_VALIDATION } from 'shared/constants';
 
-jest.mock('shared/views/MarkdownEditor/MarkdownEditor/MarkdownEditor.vue');
-jest.mock('shared/views/MarkdownEditor/MarkdownViewer/MarkdownViewer.vue');
+jest.mock('shared/views/TipTapEditor/TipTapEditor/TipTapEditor.vue');
 
 const NODE_ID = 'node-id';
 const ITEM1 = {
@@ -184,10 +183,18 @@ describe('AssessmentEditor', () => {
 
     expect(items.length).toBe(4);
 
-    expect(items.at(0).html()).toContain(ITEM1.question);
-    expect(items.at(1).html()).toContain(ITEM2.question);
-    expect(items.at(2).html()).toContain(ITEM3.question);
-    expect(items.at(3).html()).toContain(ITEM4.question);
+    expect(items.at(0).findComponent({ name: 'RichTextEditor' }).props('value')).toBe(
+      ITEM1.question,
+    );
+    expect(items.at(1).findComponent({ name: 'RichTextEditor' }).props('value')).toBe(
+      ITEM2.question,
+    );
+    expect(items.at(2).findComponent({ name: 'RichTextEditor' }).props('value')).toBe(
+      ITEM3.question,
+    );
+    expect(items.at(3).findComponent({ name: 'RichTextEditor' }).props('value')).toBe(
+      ITEM4.question,
+    );
   });
 
   it('renders items as closed', () => {
@@ -263,7 +270,7 @@ describe('AssessmentEditor', () => {
 
     it('emits delete item event with a correct key', () => {
       expect(listeners.deleteItem).toHaveBeenCalledWith(ITEM2);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
 
     it('emits update item events with updated order of items after the deleted item', () => {
@@ -281,7 +288,7 @@ describe('AssessmentEditor', () => {
           order: 2,
         },
       ]);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -293,7 +300,7 @@ describe('AssessmentEditor', () => {
     });
 
     it('emits add item event with a new item with a correct order', () => {
-      expect(listeners.addItem).toBeCalledWith({
+      expect(listeners.addItem).toHaveBeenCalledWith({
         contentnode: NODE_ID,
         question: '',
         type: AssessmentItemTypes.SINGLE_SELECTION,
@@ -323,7 +330,7 @@ describe('AssessmentEditor', () => {
           order: 4,
         },
       ]);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -344,7 +351,7 @@ describe('AssessmentEditor', () => {
         order: 2,
         [DELAYED_VALIDATION]: true,
       });
-      expect(listeners.addItem).toBeCalledTimes(1);
+      expect(listeners.addItem).toHaveBeenCalledTimes(1);
     });
 
     it('emits update item events with updated order of items below the new item', () => {
@@ -366,7 +373,7 @@ describe('AssessmentEditor', () => {
           order: 4,
         },
       ]);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -388,7 +395,7 @@ describe('AssessmentEditor', () => {
           order: 1,
         },
       ]);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -410,7 +417,7 @@ describe('AssessmentEditor', () => {
           order: 1,
         },
       ]);
-      expect(listeners.updateItems).toBeCalledTimes(1);
+      expect(listeners.updateItems).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -420,7 +427,7 @@ describe('AssessmentEditor', () => {
     });
 
     it('emits add item event with a new item with a correct order', () => {
-      expect(listeners.addItem).toBeCalledWith({
+      expect(listeners.addItem).toHaveBeenCalledWith({
         contentnode: NODE_ID,
         question: '',
         type: AssessmentItemTypes.SINGLE_SELECTION,
