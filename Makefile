@@ -39,7 +39,7 @@ migrate:
 # 4) Remove the management command from this `deploy-migrate` recipe
 # 5) Repeat!
 deploy-migrate:
-        echo "Nothing to do here!"
+	echo "Nothing to do here!"
 
 contentnodegc:
 	python contentcuration/manage.py garbage_collect
