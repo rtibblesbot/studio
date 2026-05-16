@@ -7,6 +7,7 @@ import uuid
 from unittest import skipIf
 
 from django.db import connections
+from django.db import IntegrityError
 from django.urls import reverse_lazy
 from le_utils.constants import content_kinds
 from le_utils.constants import exercises
@@ -20,6 +21,7 @@ from le_utils.constants.labels.needs import NEEDSLIST
 from le_utils.constants.labels.resource_type import RESOURCETYPELIST
 from le_utils.constants.labels.subjects import SUBJECTSLIST
 from mixer.main import mixer
+from mock import MagicMock
 from mock import patch
 from rest_framework.test import APIClient
 
@@ -1348,3 +1350,150 @@ class ApiAddRemoteNodesToTreeTestCase(StudioTestCase):
         )
 
         self.assertEqual(response.status_code, 200, response.content)
+
+
+class Pattern1StaticErrorBodyTestCase(StudioTestCase):
+    """Pattern 1 — str(e) must not appear in 500 response bodies."""
+
+    def test_check_version_500_is_static(self):
+        """Trigger the outer except in check_version; body must be static."""
+        sentinel = "secret_internal_path_xyz"
+        client = self.admin_client()
+        with patch("contentcuration.views.internal.handle_server_error"):
+            with patch(
+                "contentcuration.views.internal.LooseVersion",
+                side_effect=Exception(sentinel),
+            ):
+                response = client.post(
+                    reverse_lazy("check_version"),
+                    data=json.dumps({"version": "0.6.0"}),
+                    content_type="application/json",
+                )
+        self.assertEqual(response.status_code, 500)
+        self.assertNotIn(sentinel.encode(), response.content)
+        self.assertIn(b"Internal server error", response.content)
+
+
+class Pattern2NoEchoTestCase(StudioTestCase):
+    """Pattern 2 — user-supplied values must not appear in 4xx response bodies."""
+
+    def test_api_commit_channel_404_does_not_echo_channel_id(self):
+        """Non-existent channel_id must not be echoed in the 404 body."""
+        channel_id = "deadbeef-dead-dead-dead-deaddeadbeef"
+        client = self.admin_client()
+        response = client.post(
+            reverse_lazy("api_finish_channel"),
+            data=json.dumps({"channel_id": channel_id}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn(channel_id.encode(), response.content)
+
+    def test_api_add_nodes_missing_root_id_does_not_echo_key(self):
+        """Missing root_id KeyError must not echo the key name in response body."""
+        client = self.admin_client()
+        response = client.post(
+            reverse_lazy("api_add_nodes_to_tree"),
+            data=json.dumps({"content_data": []}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn(b"KeyError", response.content)
+        self.assertNotIn(b"Traceback", response.content)
+
+
+class Pattern3StaticErrorsListTestCase(StudioTestCase):
+    """Pattern 3 — str(e) must not appear in change errors lists."""
+
+    def test_create_from_changes_error_is_static(self):
+        """CreateModelMixin.create_from_changes errors must be a static string."""
+        from contentcuration.viewsets.base import CreateModelMixin
+
+        mixin = CreateModelMixin()
+        mixin.get_serializer = MagicMock()
+        mixin.request = MagicMock()
+        mixin.request.user = MagicMock()
+
+        secret = "secret_db_path_abc"
+        serializer_mock = MagicMock()
+        serializer_mock.is_valid.return_value = True
+        mixin.get_serializer.return_value = serializer_mock
+        mixin._map_create_change = lambda c: c
+        mixin.perform_create = MagicMock(side_effect=Exception(secret))
+
+        changes = [{"key": "testkey"}]
+        with patch("contentcuration.viewsets.base.log_sync_exception"):
+            errors = mixin.create_from_changes(changes)
+
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn(secret, str(errors[0].get("errors", [])))
+        self.assertIn("Internal server error", str(errors[0].get("errors", [])))
+
+
+class Pattern3ChannelViewsetTestCase(StudioTestCase):
+    """Pattern 3 — str(e) must not appear in channel viewset change error lists."""
+
+    def test_publish_from_changes_error_is_static(self):
+        """publish_from_changes errors must be a static string."""
+        from contentcuration.viewsets.channel import ChannelViewSet
+
+        viewset = ChannelViewSet()
+        viewset.request = MagicMock()
+        viewset.request.user = MagicMock()
+
+        secret = "secret_publish_error_xyz"
+        viewset.publish = MagicMock(side_effect=Exception(secret))
+
+        changes = [{"key": "testkey"}]
+        with patch("contentcuration.viewsets.channel.log_sync_exception"):
+            errors = viewset.publish_from_changes(changes)
+
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn(secret, str(errors[0].get("errors", [])))
+        self.assertIn("Internal server error", str(errors[0].get("errors", [])))
+
+    def test_deploy_from_changes_error_is_static(self):
+        """deploy_from_changes errors must be a static string."""
+        from contentcuration.viewsets.channel import ChannelViewSet
+
+        viewset = ChannelViewSet()
+        viewset.request = MagicMock()
+        viewset.request.user = MagicMock()
+
+        secret = "secret_deploy_error_xyz"
+        viewset.deploy = MagicMock(side_effect=Exception(secret))
+
+        changes = [{"key": "testkey"}]
+        with patch("contentcuration.viewsets.channel.log_sync_exception"):
+            errors = viewset.deploy_from_changes(changes)
+
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn(secret, str(errors[0].get("errors", [])))
+        self.assertIn("Internal server error", str(errors[0].get("errors", [])))
+
+
+class Pattern3UserViewsetTestCase(StudioTestCase):
+    """Pattern 3 — str(e) must not appear in user viewset relationship change error lists."""
+
+    def test_handle_relationship_changes_integrity_error_is_static(self):
+        """ChannelUserViewSet._handle_relationship_changes IntegrityError must be static."""
+        from contentcuration.viewsets.user import ChannelUserViewSet
+
+        viewset = ChannelUserViewSet()
+        viewset.request = MagicMock()
+        viewset.request.user = MagicMock()
+
+        secret = "secret_integrity_error_xyz"
+        changes = [
+            {"key": ("uid1", "chanid1"), "table": "editor_m2m", "type": "created"}
+        ]
+        viewset._check_permissions = MagicMock(return_value=(changes, []))
+        viewset._get_values_from_change = MagicMock(return_value={})
+        viewset._execute_changes = MagicMock(side_effect=IntegrityError(secret))
+
+        errors = viewset._handle_relationship_changes(changes)
+
+        self.assertIsNotNone(errors)
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn(secret, str(errors[0].get("errors", [])))
+        self.assertIn("Internal server error", str(errors[0].get("errors", [])))
