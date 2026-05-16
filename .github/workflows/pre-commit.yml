@@ -12,6 +12,9 @@ on:
     - hotfixes
     - master
 
+permissions:
+  contents: read
+
 jobs:
   pre_job:
     name: Path match check
