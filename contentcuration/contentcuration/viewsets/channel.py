@@ -649,6 +649,11 @@ class ChannelViewSet(ValuesViewset):
                     publish["key"],
                     use_staging_tree=publish.get("use_staging_tree", False),
                 )
+            except ValidationError as e:
+                log_sync_exception(e, user=self.request.user, change=publish)
+                detail = e.detail
+                publish["errors"] = detail if isinstance(detail, list) else [detail]
+                errors.append(publish)
             except Exception as e:
                 log_sync_exception(e, user=self.request.user, change=publish)
                 publish["errors"] = ["Internal server error"]
