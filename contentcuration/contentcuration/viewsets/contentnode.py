@@ -719,7 +719,7 @@ class PrerequisitesUpdateHandler(ValuesViewset):
         except IntegrityError:
             logger.exception("_handle_relationship_changes IntegrityError")
             for change in valid_changes:
-                change.update({"errors": ["Internal server error"]})
+                change.update({"errors": ["Relationship already exists"]})
                 errors.append(change)
 
         return errors or None
