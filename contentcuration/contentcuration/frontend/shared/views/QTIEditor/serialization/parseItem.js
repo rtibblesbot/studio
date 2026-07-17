@@ -16,10 +16,10 @@ const parser = new DOMParser();
 export function parseXML(xmlString, mimeType = 'text/xml') {
   const doc = parser.parseFromString(xmlString, mimeType);
 
-  // DOMParser never throws — it signals failure via a <parsererror> node. This
-  // only applies to XML: the HTML parser recovers silently and never emits one,
-  // so an HTML document literally containing a <parsererror> must not trip it.
-  if (mimeType === 'text/xml') {
+  // DOMParser never throws — it signals failure via a <parsererror> node. Only
+  // the HTML parser is exempt: it recovers silently and never emits one, so an
+  // HTML document literally containing a <parsererror> must not trip the check.
+  if (mimeType !== 'text/html') {
     const error = doc.querySelector('parsererror');
     if (error) {
       throw new Error(`QTI XML parse error: ${error.textContent.trim()}`);

@@ -81,14 +81,10 @@ export function buildXmlNode({ tag, attrs = {}, children, innerHTML }) {
 export function assembleItemXml({ identifier, title, language, bodyXml, responseDeclarations }) {
   // Parse each serialized declaration string back into a DOM node so it can be
   // adopted into the assessment item tree via buildXmlNode's importNode logic.
-  const declNodes = (responseDeclarations || []).map(declXml => {
-    const doc = parseXML(declXml);
-    return doc.documentElement;
-  });
+  const declNodes = (responseDeclarations || []).map(declXml => parseXML(declXml).documentElement);
 
   // Parse the interaction body XML into a DOM node.
-  const bodyDoc = parseXML(bodyXml || '<qti-item-body/>');
-  const interactionNode = bodyDoc.documentElement;
+  const interactionNode = parseXML(bodyXml || '<qti-item-body/>').documentElement;
 
   const itemBodyNode = buildXmlNode({
     tag: 'qti-item-body',
