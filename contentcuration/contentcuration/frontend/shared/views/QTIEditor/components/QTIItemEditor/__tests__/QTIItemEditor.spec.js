@@ -96,8 +96,8 @@ describe('QTIItemEditor', () => {
 
     test('names the associate question type rather than falling back to unknown', async () => {
       renderAssociateItem();
-      expect(await screen.findByText(new RegExp(associateLabel$()))).toBeInTheDocument();
-      expect(screen.queryByText(new RegExp(unknownTypeLabel$()))).not.toBeInTheDocument();
+      expect(await screen.findByText(associateLabel$(), { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText(unknownTypeLabel$(), { exact: false })).not.toBeInTheDocument();
     });
 
     test('renders the associate editor for the parsed interaction', async () => {

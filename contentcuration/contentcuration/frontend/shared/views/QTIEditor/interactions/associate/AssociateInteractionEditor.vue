@@ -426,9 +426,8 @@
       // The distractor being written, held out of state until its editor closes.
       const draft = ref(null);
 
-      // An editor only takes focus as it mounts, so each press of the add
-      // button changes this key: without it Vue patches the editor already on
-      // screen and the press leaves the caret behind on the button.
+      // A TipTap editor takes focus only as it mounts, so bumping this key on every
+      // add press remounts the draft editor — patched in place it leaves focus behind.
       const draftKey = ref(0);
 
       const isPromptOpen = computed(
@@ -1023,8 +1022,8 @@
     }
   }
 
-  // The whole chip is the clickable region, so its remove button rides inside
-  // it and the hover, focus ring and radius all follow the chip's own edge.
+  // The chip itself is the clickable region, so hover, focus ring and radius all
+  // follow the chip's own edge.
   .distractor-row {
     display: flex;
     align-items: center;

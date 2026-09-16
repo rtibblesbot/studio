@@ -192,30 +192,39 @@ describe('AssociateInteractionEditor', () => {
   });
 
   describe('pair layout below the large breakpoint', () => {
-    const stackedRows = container =>
-      [...container.querySelectorAll('.pair-row')].map(row => row.classList.contains('is-stacked'));
+    const pairRows = () =>
+      within(screen.getByRole('list', { name: tr.$tr('correctPairsLabel') })).getAllByRole(
+        'listitem',
+      );
 
     it('stacks only the row whose editor is open', async () => {
       mockWindowIsLarge = false;
       const user = userEvent.setup();
       // Pair 1 item 1 opens on mount.
-      const { container } = renderEditor();
-      expect(stackedRows(container)).toEqual([true, false]);
+      renderEditor();
+      const [first, second] = pairRows();
+      expect(first).toHaveClass('is-stacked');
+      expect(second).not.toHaveClass('is-stacked');
 
       await user.click(button(editPairItem(2, 1)));
-      expect(stackedRows(container)).toEqual([false, true]);
+      expect(first).not.toHaveClass('is-stacked');
+      expect(second).toHaveClass('is-stacked');
     });
 
     it('stacks no row on a large screen', () => {
-      const { container } = renderEditor();
-      expect(stackedRows(container)).toEqual([false, false]);
+      renderEditor();
+      for (const row of pairRows()) {
+        expect(row).not.toHaveClass('is-stacked');
+      }
     });
 
     it('stacks every row on a small screen, open or not', () => {
       mockWindowIsLarge = false;
       mockWindowIsSmall = true;
-      const { container } = renderEditor();
-      expect(stackedRows(container)).toEqual([true, true]);
+      renderEditor();
+      for (const row of pairRows()) {
+        expect(row).toHaveClass('is-stacked');
+      }
     });
   });
 
