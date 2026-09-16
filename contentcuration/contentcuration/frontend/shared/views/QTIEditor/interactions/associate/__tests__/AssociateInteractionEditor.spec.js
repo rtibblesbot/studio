@@ -268,6 +268,25 @@ describe('AssociateInteractionEditor', () => {
       expect(openTextarea()).toHaveValue('');
     });
 
+    it('focuses the empty editor when the add button is clicked with a draft open', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await user.click(button(tr.$tr('addDistractorBtn')));
+      await user.type(openTextarea(), 'Demetrius');
+      await user.click(button(tr.$tr('addDistractorBtn')));
+
+      expect(openTextarea()).toHaveFocus();
+    });
+
+    it('focuses the editor again when the add button is clicked with nothing written', async () => {
+      const user = userEvent.setup();
+      renderEditor();
+      await user.click(button(tr.$tr('addDistractorBtn')));
+      await user.click(button(tr.$tr('addDistractorBtn')));
+
+      expect(openTextarea()).toHaveFocus();
+    });
+
     it('drops the new distractor when its editor closes with no content', async () => {
       const user = userEvent.setup();
       renderEditor();

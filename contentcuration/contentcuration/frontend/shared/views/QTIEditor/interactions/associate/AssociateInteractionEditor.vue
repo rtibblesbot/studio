@@ -301,6 +301,7 @@
         >
           <div class="draft-editor">
             <TipTapEditor
+              :key="draftKey"
               :value="draft.content"
               mode="edit"
               format="html"
@@ -424,6 +425,11 @@
       // The distractor being written, held out of state until its editor closes.
       const draft = ref(null);
 
+      // An editor only takes focus as it mounts, so each press of the add
+      // button changes this key: without it Vue patches the editor already on
+      // screen and the press leaves the caret behind on the button.
+      const draftKey = ref(0);
+
       const isPromptOpen = computed(
         () => props.mode === 'edit' && openTarget.value?.kind === OpenTarget.PROMPT,
       );
@@ -510,6 +516,7 @@
       function onAddDistractor() {
         if (props.mode !== 'edit') return;
         closeOpenTarget();
+        draftKey.value += 1;
         draft.value = { content: '' };
         openTarget.value = { kind: OpenTarget.DRAFT };
       }
@@ -693,6 +700,7 @@
         onAddPair,
         onAddDistractor,
         draft,
+        draftKey,
         setDraftContent,
         discardDraft,
         promptHasError,
