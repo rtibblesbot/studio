@@ -178,10 +178,10 @@
             <KIconButton
               icon="close"
               size="small"
-              :disabled="state.pairs.length <= 1"
+              :disabled="isOnlyPair"
               :ariaLabel="deletePairBtn$({ number: index + 1 })"
               :tooltip="deletePairBtn$({ number: index + 1 })"
-              :color="$themePalette.grey.v_400"
+              :color="isOnlyPair ? $themeTokens.textDisabled : $themePalette.grey.v_700"
               @click="onRemovePair(index)"
             />
           </div>
@@ -646,6 +646,8 @@
           : { borderColor: promptHasError.value ? tokens.error : tokens.fineLine },
       );
 
+      const isOnlyPair = computed(() => state.value.pairs.length <= 1);
+
       const pairsSectionLabel = computed(() =>
         props.mode === 'edit' ? correctPairsLabel$() : correctAnswersLabel$(),
       );
@@ -698,6 +700,7 @@
         distractorErrorMessages,
         pairItemStyle,
         distractorStyle,
+        isOnlyPair,
         pairsSectionLabel,
         shuffledPool,
         poolChipStyle,
