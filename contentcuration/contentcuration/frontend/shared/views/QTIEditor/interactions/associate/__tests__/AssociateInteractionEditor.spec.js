@@ -16,11 +16,15 @@ import { qtiEditorStrings as tr } from '../../../qtiEditorStrings';
 jest.mock('shared/views/TipTapEditor/TipTapEditor/TipTapEditor');
 
 let mockWindowIsLarge = true;
+let mockWindowIsSmall = false;
 jest.mock('kolibri-design-system/lib/composables/useKResponsiveWindow', () => {
   const { ref } = require('vue');
   return {
     __esModule: true,
-    default: () => ({ windowIsLarge: ref(mockWindowIsLarge) }),
+    default: () => ({
+      windowIsLarge: ref(mockWindowIsLarge),
+      windowIsSmall: ref(mockWindowIsSmall),
+    }),
   };
 });
 
@@ -81,6 +85,7 @@ const latestBodyXml = emitted => updates(emitted).at(-1)[0].bodyXml;
 describe('AssociateInteractionEditor', () => {
   beforeEach(() => {
     mockWindowIsLarge = true;
+    mockWindowIsSmall = false;
   });
 
   describe('edit mode rendering', () => {
@@ -204,6 +209,13 @@ describe('AssociateInteractionEditor', () => {
     it('stacks no row on a large screen', () => {
       const { container } = renderEditor();
       expect(stackedRows(container)).toEqual([false, false]);
+    });
+
+    it('stacks every row on a small screen, open or not', () => {
+      mockWindowIsLarge = false;
+      mockWindowIsSmall = true;
+      const { container } = renderEditor();
+      expect(stackedRows(container)).toEqual([true, true]);
     });
   });
 

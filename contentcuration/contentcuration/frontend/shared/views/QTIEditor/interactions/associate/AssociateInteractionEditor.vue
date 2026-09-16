@@ -375,7 +375,7 @@
     },
 
     setup(props, { emit }) {
-      const { windowIsLarge } = useKResponsiveWindow();
+      const { windowIsLarge, windowIsSmall } = useKResponsiveWindow();
       const tokens = themeTokens();
       const palette = themePalette();
 
@@ -439,8 +439,9 @@
 
       // Two cards side by side leave an open editor too narrow to hold its
       // toolbar on anything but a large screen, so the row being edited stacks.
+      // A small screen is too narrow for the pair even closed, so it stacks throughout.
       function isPairRowStacked(index) {
-        return !windowIsLarge.value && isPairRowOpen(index);
+        return windowIsSmall.value || (!windowIsLarge.value && isPairRowOpen(index));
       }
 
       function isDistractorOpen(index) {
@@ -873,6 +874,12 @@
     .is-stacked & {
       flex-direction: column;
       margin-top: 8px;
+
+      // A view-mode chip is a pill sized by its content, so the column that
+      // stacks it must not stretch it to the row's width.
+      > .chip {
+        align-self: flex-start;
+      }
     }
   }
 
