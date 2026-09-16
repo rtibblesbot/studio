@@ -249,18 +249,15 @@
             class="distractor"
             :class="{ 'is-editing': isDistractorOpen(index) }"
           >
-            <div
+            <ClickableRegion
               class="distractor-row"
-              :class="{ 'chip is-tinted': !isDistractorOpen(index) }"
+              :class="{ 'chip is-tinted is-clickable': !isDistractorOpen(index) }"
               :style="distractorStyle(index, choice)"
+              :suppressed="isDistractorOpen(index)"
+              :aria-label="editDistractorLabel$({ number: index + 1 })"
+              @click="openDistractor(choice)"
             >
-              <ClickableRegion
-                class="chip-region"
-                :class="{ 'is-clickable': !isDistractorOpen(index) }"
-                :suppressed="isDistractorOpen(index)"
-                :aria-label="editDistractorLabel$({ number: index + 1 })"
-                @click="openDistractor(choice)"
-              >
+              <div class="distractor-content">
                 <TipTapEditor
                   :value="choice.content"
                   :mode="isDistractorOpen(index) ? 'edit' : 'view'"
@@ -273,16 +270,20 @@
                   @update="html => setDistractorContent(index, html)"
                   @minimize="closeOpenTarget"
                 />
-              </ClickableRegion>
-              <KIconButton
-                icon="close"
-                size="small"
-                :ariaLabel="deleteDistractorBtn$({ number: index + 1 })"
-                :tooltip="deleteDistractorBtn$({ number: index + 1 })"
-                :color="$themePalette.grey.v_700"
-                @click="onRemoveDistractor(choice)"
-              />
-            </div>
+              </div>
+
+              <!-- `@click.stop` so removing the chip does not also open it -->
+              <div @click.stop>
+                <KIconButton
+                  icon="close"
+                  size="small"
+                  :ariaLabel="deleteDistractorBtn$({ number: index + 1 })"
+                  :tooltip="deleteDistractorBtn$({ number: index + 1 })"
+                  :color="$themePalette.grey.v_700"
+                  @click="onRemoveDistractor(choice)"
+                />
+              </div>
+            </ClickableRegion>
             <ValidationMessage v-if="distractorErrorMessages[index]">
               {{ distractorErrorMessages[index] }}
             </ValidationMessage>
@@ -996,19 +997,6 @@
     }
   }
 
-  // A blank choice renders nothing, so without a floor the chip collapses to a
-  // strip too small to click. The chip's own radius stops here rather than being
-  // inherited: a focus ring drawn round the editor reads as a pill, not a card.
-  .chip-region {
-    min-width: 24px;
-    min-height: 24px;
-    border-radius: 0;
-
-    &.is-clickable {
-      cursor: pointer;
-    }
-  }
-
   .draft-row {
     display: flex;
     gap: 8px;
@@ -1035,14 +1023,36 @@
     }
   }
 
+  // The whole chip is the clickable region, so its remove button rides inside
+  // it and the hover, focus ring and radius all follow the chip's own edge.
   .distractor-row {
     display: flex;
-    gap: 8px;
     align-items: center;
 
-    .chip-region {
-      flex: 1;
+    &.is-clickable {
+      cursor: pointer;
+      transition: background-color 0.3s;
+
+      &:hover {
+        background-color: v-bind('$themeTokens.fineLine');
+      }
     }
+
+    ::v-deep .content-wrapper {
+      display: flex;
+      flex: 1;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
+    }
+  }
+
+  // A blank choice renders nothing, so without a floor the chip collapses to a
+  // strip too small to click.
+  .distractor-content {
+    flex: 1;
+    min-width: 24px;
+    min-height: 24px;
   }
 
   .editor {
