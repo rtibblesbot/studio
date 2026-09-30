@@ -299,35 +299,6 @@ export const CHOICE_ITEM_DOCUMENT_WITH_HINTS = `<?xml version="1.0" encoding="UT
   </qti-catalog-info>
 </qti-assessment-item>`;
 
-/**
- * A converted question with nothing to answer, which still carries its text in the body and
- * hints in its catalog. No interaction means no interaction editor, so the only thing an
- * author can edit here is a hint — and that must not cost the body.
- */
-export const NO_INTERACTION_ITEM_WITH_HINTS = `<?xml version="1.0" encoding="UTF-8"?>
-<qti-assessment-item
-  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
-  identifier="item-no-interaction-hints"
-  title="Answerless Question"
-  adaptive="false"
-  time-dependent="false"
-  xml:lang="en"
->
-  <qti-item-body>
-    <div><p>What is the capital of France?</p></div>
-  </qti-item-body>
-  <qti-catalog-info>
-    <qti-catalog id="kolibri-hints">
-      <qti-card support="ext:kolibri-hint">
-        <qti-html-content><p>It is on the Seine</p></qti-html-content>
-      </qti-card>
-      <qti-card support="ext:kolibri-hint">
-        <qti-html-content><p>Starts with a P</p></qti-html-content>
-      </qti-card>
-    </qti-catalog>
-  </qti-catalog-info>
-</qti-assessment-item>`;
-
 export const VALID_ASSOCIATE_ITEM_DOCUMENT = `<?xml version="1.0" encoding="UTF-8"?>
 <qti-assessment-item
   xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
@@ -382,10 +353,68 @@ export const TWO_INTERACTIONS_DOCUMENT = `<?xml version="1.0" encoding="UTF-8"?>
   </qti-item-body>
 </qti-assessment-item>`;
 
+/** Two choice interactions and a hint catalog: parses, but cannot be edited faithfully. */
+export const MULTI_INTERACTION_ITEM_DOCUMENT = `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="item-multi-choice"
+  title="Two Choice Questions"
+  adaptive="false"
+  time-dependent="false"
+  xml:lang="en"
+>
+  <qti-response-declaration identifier="RESP1" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>A</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="RESP2" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>C</qti-value></qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-item-body>
+    <qti-choice-interaction response-identifier="RESP1" max-choices="1">
+      <qti-prompt>First question</qti-prompt>
+      <qti-simple-choice identifier="A">Yes</qti-simple-choice>
+      <qti-simple-choice identifier="B">No</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-choice-interaction response-identifier="RESP2" max-choices="1">
+      <qti-prompt>Second question</qti-prompt>
+      <qti-simple-choice identifier="C">Yes</qti-simple-choice>
+      <qti-simple-choice identifier="D">No</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-catalog-info>
+    <qti-catalog id="kolibri-hints">
+      <qti-card support="ext:kolibri-hint">
+        <qti-html-content><p>Think about it</p></qti-html-content>
+      </qti-card>
+    </qti-catalog>
+  </qti-catalog-info>
+</qti-assessment-item>`;
+
+/** An interaction QTI defines but this editor has no descriptor for. */
+export const UNRECOGNIZED_INTERACTION_ITEM_DOCUMENT = `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item
+  xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
+  identifier="item-hotspot"
+  title="Hotspot Question"
+  adaptive="false"
+  time-dependent="false"
+  xml:lang="en"
+>
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>hs1</qti-value></qti-correct-response>
+  </qti-response-declaration>
+
+  <qti-item-body>
+    <qti-hotspot-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-prompt>Click the capital</qti-prompt>
+      <qti-hotspot-choice identifier="hs1" shape="circle" coords="10,10,5" />
+    </qti-hotspot-interaction>
+  </qti-item-body>
+</qti-assessment-item>`;
+
 /**
  * Two text entries whose declarations are listed out of body order.
- * Text entry, the only inline interaction parseItem finds until #6180, stands in for
- * inline choice.
  */
 export const MULTI_TEXT_ENTRY_ITEM_DOCUMENT = `<?xml version="1.0" encoding="UTF-8"?>
 <qti-assessment-item
