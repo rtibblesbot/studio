@@ -9,6 +9,8 @@ import {
   MATCH_THREE_SETS_XML,
   MATCH_XML,
   MULTI_TEXT_ENTRY_ITEM_DOCUMENT,
+  MULTI_INTERACTION_ITEM_DOCUMENT,
+  UNRECOGNIZED_INTERACTION_ITEM_DOCUMENT,
 } from '../utils/testingFixtures';
 
 const codesOf = errors => errors.map(error => error.code);
@@ -41,6 +43,44 @@ describe('validateQtiItem', () => {
     expect(validateQtiItem(NO_INTERACTION_ITEM_DOCUMENT)).toEqual([
       { code: ValidationError.NO_INTERACTION },
     ]);
+  });
+
+  it.each([
+    ['several interactions', MULTI_INTERACTION_ITEM_DOCUMENT],
+    ['an interaction with no descriptor', UNRECOGNIZED_INTERACTION_ITEM_DOCUMENT],
+    [
+      'an extended-text interaction',
+      UNRECOGNIZED_INTERACTION_ITEM_DOCUMENT.replace(
+        /qti-hotspot-interaction/g,
+        'qti-extended-text-interaction',
+      ),
+    ],
+  ])('reports nothing for an item with %s, which is shown read-only', (_, document) => {
+    expect(validateQtiItem(document)).toEqual([]);
+  });
+
+  it('does not block an extended-text item on a consumer that scores its questions', () => {
+    const xml = UNRECOGNIZED_INTERACTION_ITEM_DOCUMENT.replace(
+      /qti-hotspot-interaction/g,
+      'qti-extended-text-interaction',
+    );
+    expect(validateQtiItem(xml, { allowFreeResponse: false })).toEqual([]);
+  });
+
+  it('reports a three-set match interaction inside a multi-interaction item as unparseable', () => {
+    const xml = MULTI_INTERACTION_ITEM_DOCUMENT.replace(
+      /<qti-choice-interaction response-identifier="RESP2"[\s\S]*?<\/qti-choice-interaction>/,
+      MATCH_THREE_SETS_XML,
+    );
+    expect(codesOf(validateQtiItem(xml))).toContain(ValidationError.PARSE_ERROR);
+  });
+
+  it('does not apply the editor rules to a multi-interaction item', () => {
+    const xml = MULTI_INTERACTION_ITEM_DOCUMENT.replace(
+      /<qti-prompt>First question<\/qti-prompt>/,
+      '',
+    );
+    expect(validateQtiItem(xml, { allowFreeResponse: false })).toEqual([]);
   });
 
   it('reports an item with no raw data at all', () => {

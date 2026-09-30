@@ -1,4 +1,4 @@
-import { descriptors, editors, registry, DEFAULT_INTERACTION } from '../index';
+import { descriptors, editors, registry } from '../index';
 import { isInlineInteraction } from '../descriptors';
 import { Placement, QtiInteraction } from '../../constants';
 
@@ -26,10 +26,6 @@ describe('interaction registry', () => {
 
   it('keys the registry by every descriptor type', () => {
     expect(Object.keys(registry).sort()).toEqual(descriptors.map(d => d.type).sort());
-  });
-
-  it('has a descriptor for the fallback interaction', () => {
-    expect(registry[DEFAULT_INTERACTION]).toBeDefined();
   });
 
   describe('isInlineInteraction', () => {

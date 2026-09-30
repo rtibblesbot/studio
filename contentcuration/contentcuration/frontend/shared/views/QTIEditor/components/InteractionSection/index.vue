@@ -7,7 +7,7 @@
     >
       {{ parseError }}
     </p>
-    <div v-else>
+    <div v-else-if="descriptor">
       <QuestionTypeSelector
         v-if="mode === 'edit'"
         :questionType="questionType"
@@ -83,7 +83,7 @@
 
       const settingsTargetId = generateRandomSlug('answer-settings');
 
-      const editorComponent = computed(() => editors[descriptor.value.type]);
+      const editorComponent = computed(() => descriptor.value && editors[descriptor.value.type]);
 
       return {
         descriptor,

@@ -1,4 +1,4 @@
-import { Placement, QtiInteraction } from '../constants';
+import { Placement } from '../constants';
 import { choiceInteractionDescriptor } from './choice/Descriptor';
 import { textEntryInteractionDescriptor } from './textEntry/Descriptor';
 import { orderingInteractionDescriptor } from './ordering/Descriptor';
@@ -13,12 +13,6 @@ import { matchInteractionDescriptor } from './match/Descriptor';
  *
  * Registering a new interaction means adding its descriptor here and its editor in index.js
  */
-
-/**
- * The default interaction type used as fallback when no descriptor matches
- * the interaction element found in the XML body.
- */
-export const DEFAULT_INTERACTION = QtiInteraction.CHOICE;
 
 /**
  * Ordered list of all registered interaction descriptors.
