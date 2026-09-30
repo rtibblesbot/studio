@@ -27,6 +27,9 @@ const renderSection = (props = {}) =>
     routes: new VueRouter(),
   });
 
+// jest_config/setup.js adds a hidden csrf input to the document.
+const isAuthorInput = el => el.name !== 'csrfmiddlewaretoken';
+
 describe('InteractionSection', () => {
   describe('choice interaction', () => {
     it('renders the prompt from the XML via ChoiceInteractionEditor', () => {
@@ -145,7 +148,7 @@ describe('InteractionSection', () => {
     it('renders nothing editable', () => {
       renderSection({ interaction: interactionBlock(UNKNOWN_INTERACTION_XML), mode: 'edit' });
       expect(screen.queryByRole('button')).not.toBeInTheDocument();
-      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('textbox').filter(isAuthorInput)).toHaveLength(0);
       expect(screen.queryByRole('radio')).not.toBeInTheDocument();
     });
   });

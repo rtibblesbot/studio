@@ -59,6 +59,9 @@ const renderComponent = (props = {}, slots = {}) => {
   });
 };
 
+// jest_config/setup.js adds a hidden csrf input to the document.
+const isAuthorInput = el => el.name !== 'csrfmiddlewaretoken';
+
 describe('QTIItemEditor', () => {
   afterEach(() => jest.restoreAllMocks());
 
@@ -155,7 +158,7 @@ describe('QTIItemEditor', () => {
           expect(screen.queryByRole('radio')).not.toBeInTheDocument();
           expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
           expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-          expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+          expect(screen.queryAllByRole('textbox').filter(isAuthorInput)).toHaveLength(0);
         });
       });
 
@@ -179,7 +182,7 @@ describe('QTIItemEditor', () => {
       test('still renders the editor for a text-entry block holding several blanks', () => {
         renderDocument(MULTI_TEXT_ENTRY_ITEM_DOCUMENT, { mode: 'edit' });
         expect(screen.queryByText(unsupportedItemMessage$())).not.toBeInTheDocument();
-        expect(screen.getAllByRole('textbox').length).toBeGreaterThan(0);
+        expect(screen.queryAllByRole('textbox').filter(isAuthorInput).length).toBeGreaterThan(0);
       });
     });
   });
