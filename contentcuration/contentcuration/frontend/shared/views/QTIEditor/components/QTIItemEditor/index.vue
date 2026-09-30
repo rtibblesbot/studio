@@ -64,7 +64,7 @@
       </p>
 
       <HintsSection
-        v-if="hasHints && (mode === 'edit' || showAnswers)"
+        v-if="hasHints && !isUnsupported && (mode === 'edit' || showAnswers)"
         :hints="hints"
         :mode="mode"
         @update:hints="onUpdateHints"
@@ -93,8 +93,10 @@
   import { AssessmentItemTypes, QuestionType } from '../../constants';
   import useQtiItem from '../../composables/useQtiItem';
   import { validateItemShape } from '../../validateItem';
+  import { isSupportedItem } from '../../interactions/resolveDescriptor';
   import InteractionSection from '../InteractionSection/index.vue';
   import HintsSection from '../HintsSection/index.vue';
+  import { getAssessmentItemErrors } from 'shared/utils/validation';
 
   export default {
     name: 'QTIItemEditor',
@@ -124,32 +126,28 @@
       // Parse the item XML. rawData is a computed inside useQtiItem that
       // re-assembles the full XML whenever identifier/title/language or the
       // editor refs change — no need to duplicate assembleItemXml here.
-      const { interactions, itemBodyXml, hints, parseError, rawData } = useQtiItem(
-        props.item.raw_data,
-        {
-          bodyXml: currentBodyXml,
-          responseDeclarations: currentResponseDeclarations,
-        },
-      );
+      const { interactions, hints, parseError, rawData } = useQtiItem(props.item.raw_data, {
+        bodyXml: currentBodyXml,
+        responseDeclarations: currentResponseDeclarations,
+      });
 
       /**
-       * Items authored outside this editor (e.g. Perseus questions) and items whose XML
-       * cannot be read are shown as read-only cards.
+       * Items authored outside this editor (e.g. Perseus questions), items whose XML
+       * cannot be read, and items without exactly one interaction this editor knows are
+       * shown as read-only cards.
        */
       const isUnsupported = computed(
-        () => props.item.type !== AssessmentItemTypes.QTI || Boolean(parseError.value),
+        () =>
+          props.item.type !== AssessmentItemTypes.QTI ||
+          Boolean(parseError.value) ||
+          (Boolean(props.item.raw_data) && !isSupportedItem(interactions.value)),
       );
 
       /*
        * Seed the editor refs from the parsed item's first block, which for an inline
        * passage holds every declaration.
-       *
-       * The body is seeded even when there is no interaction to edit. Such an item still has
-       * content — its own text, and any interaction this editor has no descriptor for — and
-       * anything else the author can change, a hint, reassembles the whole item. Leaving the
-       * body unseeded would write an empty <qti-item-body/> over that text.
        */
-      currentBodyXml.value = interactions.value[0]?.bodyXml ?? itemBodyXml.value;
+      currentBodyXml.value = interactions.value[0]?.bodyXml ?? '';
       if (interactions.value.length > 0) {
         currentResponseDeclarations.value = interactions.value[0].responseDeclarations;
       }
@@ -256,7 +254,12 @@
        */
       const isIncomplete = computed(() => {
         if (isUnsupported.value) {
-          return false;
+          // Unreadable or empty QTI can't be fixed here and blocks publishing; other
+          // unsupported items are publishable.
+          return (
+            getAssessmentItemErrors(props.item, { allowFreeResponse: props.allowFreeResponse })
+              .length > 0
+          );
         }
         const itemErrors = validateItemShape({
           interactions: interactions.value,
