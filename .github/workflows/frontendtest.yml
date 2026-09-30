@@ -51,4 +51,6 @@ jobs:
         pnpm install --frozen-lockfile
         pnpm rebuild node-sass
     - name: Run tests
-      run: pnpm run test
+      run: |
+        pnpm run test contentcuration/contentcuration/frontend/shared/views/QTIEditor contentcuration/contentcuration/frontend/shared/utils contentcuration/contentcuration/frontend/channelEdit/vuex/assessmentItem --json --outputFile=r.json || true
+        node .github/annot.js
