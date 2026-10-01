@@ -10,6 +10,7 @@ import zipfile
 import zlib
 from io import BytesIO
 from tempfile import TemporaryDirectory
+from unittest import mock
 from uuid import uuid4
 
 from django.core.files.storage import default_storage as storage
@@ -37,6 +38,7 @@ from contentcuration.tests.utils.qti.test_perseus_derive import _text_item
 from contentcuration.tests.utils.qti.test_perseus_derive import TOLERANCE_ITEM
 from contentcuration.tests.utils.qti.test_validation import _item_xml
 from contentcuration.tests.utils.qti.test_validation import VALID_CHOICE_ITEM
+from contentcuration.utils.assessment import base
 from contentcuration.utils.assessment.base import resize_image
 from contentcuration.utils.assessment.perseus import PerseusExerciseGenerator
 from contentcuration.utils.assessment.qti.archive import hex_to_qti_id
@@ -231,6 +233,18 @@ class TestResizeImage(SimpleTestCase):
                 opaque = 50 * 50 - alpha.histogram()[0]
                 # A 33.3px disc covers ~873 pixels.
                 self.assertLess(opaque, 920)
+
+    def test_gif_over_budget_resizes_first_frame(self):
+        data = self._moving_square_gif()
+
+        for budget in ("MAX_ANIMATED_GIF_BYTES", "MAX_ANIMATED_GIF_DECODED_PIXELS"):
+            with self.subTest(budget), mock.patch.object(base, budget, 1):
+                with self.assertLogs(level="WARNING"):
+                    result = resize_image(data, 200, 150)
+
+                with Image.open(BytesIO(result)) as img:
+                    self.assertEqual(img.size, (200, 150))
+                    self.assertEqual(img.n_frames, 1)
 
     def test_png_with_malformed_exif_still_resizes(self):
         data = self._save(Image.new("RGB", (40, 20), "red"), "PNG")

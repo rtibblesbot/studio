@@ -35,6 +35,13 @@ _ORIENTATION_TRANSPOSE = {
 }
 
 
+# Animated GIFs over either budget ship as their resized first frame.
+# Resized RGBA bytes across all frames; the encoder puts peak memory at ~2x.
+MAX_ANIMATED_GIF_BYTES = 64 * 1024 * 1024
+# Source pixels across all frames; about 1 s to resize.
+MAX_ANIMATED_GIF_DECODED_PIXELS = 50_000_000
+
+
 def _gif_frame_count(img):
     if img.format != "GIF":
         return 1
@@ -43,6 +50,15 @@ def _gif_frame_count(img):
     except Exception:
         # Truncated inside a later frame header; treat as a still.
         return 1
+
+
+def _within_animated_gif_budget(img, size, n_frames):
+    resized_bytes = n_frames * size[0] * size[1] * 4
+    decoded_pixels = n_frames * img.size[0] * img.size[1]
+    return (
+        resized_bytes <= MAX_ANIMATED_GIF_BYTES
+        and decoded_pixels <= MAX_ANIMATED_GIF_DECODED_PIXELS
+    )
 
 
 def _decode_gif_frames(img, size):
@@ -123,11 +139,16 @@ def resize_image(image_content, width, height):
     try:
         with Image.open(BytesIO(image_content)) as img:
             size = (int(width), int(height))
-            if _gif_frame_count(img) > 1:
+            n_frames = _gif_frame_count(img)
+            if n_frames > 1:
                 # Re-encoding would bloat delta-optimised GIFs.
                 if size == img.size:
                     return image_content
-                return _resize_animated_gif(img, size)
+                if _within_animated_gif_budget(img, size, n_frames):
+                    return _resize_animated_gif(img, size)
+                logging.warning(
+                    f"Animated GIF of {n_frames} frames is over the resize budget; keeping first frame."
+                )
             return _resize_still_image(img, size)
     except Exception as e:
         logging.warning(f"Error resizing image: {str(e)}")
