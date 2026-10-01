@@ -14,7 +14,9 @@ from django.core.files import File
 from django.core.files.storage import default_storage as storage
 from le_utils.constants import exercises
 from le_utils.constants import format_presets
+from PIL import ExifTags
 from PIL import Image
+from PIL import ImageSequence
 
 from contentcuration import models
 
@@ -22,14 +24,111 @@ from contentcuration import models
 image_pattern = rf"!\[([^\]]*)]\(\${exercises.CONTENT_STORAGE_PLACEHOLDER}/([^\s)]+)(?:\s=([0-9\.]+)x([0-9\.]+))*[^)]*\)"
 
 
+_ORIENTATION_TRANSPOSE = {
+    2: Image.Transpose.FLIP_LEFT_RIGHT,
+    3: Image.Transpose.ROTATE_180,
+    4: Image.Transpose.FLIP_TOP_BOTTOM,
+    5: Image.Transpose.TRANSPOSE,
+    6: Image.Transpose.ROTATE_270,
+    7: Image.Transpose.TRANSVERSE,
+    8: Image.Transpose.ROTATE_90,
+}
+
+
+def _gif_frame_count(img):
+    if img.format != "GIF":
+        return 1
+    try:
+        return img.n_frames
+    except Exception:
+        # Truncated inside a later frame header; treat as a still.
+        return 1
+
+
+def _decode_gif_frames(img, size):
+    """Resize each frame as it decodes so memory scales with the output size."""
+    frames = []
+    durations = []
+    has_transparency = False
+    try:
+        for frame in ImageSequence.Iterator(img):
+            resized = frame.convert("RGBA").resize(size, Image.LANCZOS)
+            if not has_transparency:
+                has_transparency = resized.getchannel("A").getextrema()[0] < 255
+            durations.append(frame.info.get("duration", 0))
+            frames.append(resized)
+    except Exception as e:
+        # Keep the frames that decoded.
+        if not frames:
+            raise
+        logging.warning(f"Truncated GIF, keeping {len(frames)} frames: {str(e)}")
+    return frames, durations, has_transparency
+
+
+def _resize_animated_gif(img, size):
+    frames, durations, has_transparency = _decode_gif_frames(img, size)
+    save_kwargs = {}
+    if "loop" in img.info:
+        save_kwargs["loop"] = img.info["loop"]
+    if has_transparency:
+        # Frames are fully composited, so restore-to-background is always correct.
+        save_kwargs["disposal"] = 2
+        # GIF transparency is binary and Pillow makes any alpha > 0 opaque,
+        # so LANCZOS's partial-alpha edges would grow an opaque fringe.
+        for frame in frames:
+            frame.putalpha(
+                frame.getchannel("A").point(lambda a: 255 if a >= 128 else 0)
+            )
+    else:
+        # In place, so each RGBA frame is freed as it converts.
+        for i, frame in enumerate(frames):
+            frames[i] = frame.convert("RGB")
+    buffered = BytesIO()
+    frames[0].save(
+        buffered,
+        format="GIF",
+        save_all=True,
+        append_images=frames[1:],
+        duration=durations,
+        optimize=True,
+        **save_kwargs,
+    )
+    return buffered.getvalue()
+
+
+def _exif_orientation(img):
+    try:
+        return img.getexif().get(ExifTags.Base.Orientation)
+    except Exception:
+        # Corrupt EXIF must not stop the resize.
+        return None
+
+
+def _resize_still_image(img, size):
+    img_format = img.format
+    # The authored size is the displayed one, so bake the orientation in.
+    # Not ImageOps.exif_transpose: it re-serialises all EXIF, which raises on malformed tags.
+    orientation = _exif_orientation(img)
+    # Orientations 5-8 swap the axes; resizing first keeps the transpose small.
+    img = img.resize(size[::-1] if orientation in (5, 6, 7, 8) else size, Image.LANCZOS)
+    transpose = _ORIENTATION_TRANSPOSE.get(orientation)
+    if transpose is not None:
+        img = img.transpose(transpose)
+    buffered = BytesIO()
+    img.save(buffered, format=img_format)
+    return buffered.getvalue()
+
+
 def resize_image(image_content, width, height):
     try:
         with Image.open(BytesIO(image_content)) as img:
-            original_format = img.format
-            img = img.resize((int(width), int(height)), Image.LANCZOS)
-            buffered = BytesIO()
-            img.save(buffered, format=original_format)
-            return buffered.getvalue()
+            size = (int(width), int(height))
+            if _gif_frame_count(img) > 1:
+                # Re-encoding would bloat delta-optimised GIFs.
+                if size == img.size:
+                    return image_content
+                return _resize_animated_gif(img, size)
+            return _resize_still_image(img, size)
     except Exception as e:
         logging.warning(f"Error resizing image: {str(e)}")
         return None
