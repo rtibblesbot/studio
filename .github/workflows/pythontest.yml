@@ -114,4 +114,16 @@ jobs:
     - name: Test pytest
       run: |
         sh -c './contentcuration/manage.py makemigrations --check'
-        pytest
+        pytest --junitxml=junit.xml || true
+        python - <<'PY'
+        import sys, xml.etree.ElementTree as ET
+        failed = 0
+        for case in ET.parse("junit.xml").iter("testcase"):
+            for bad in list(case.iter("failure")) + list(case.iter("error")):
+                failed += 1
+                text = ((bad.get("message") or "") + "\n" + (bad.text or ""))[-3500:]
+                text = text.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+                print(f"::error title={case.get('classname')}.{case.get('name')}::{text}")
+        print(f"failures: {failed}")
+        sys.exit(1 if failed else 0)
+        PY
