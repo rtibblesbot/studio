@@ -185,6 +185,8 @@ class PerseusRestoreTestCase(StudioTestCase):
             assessment_item = generate_assessment_item(
                 assessment_id, data["order"], data["type"], assessment_data
             )
+            self.assertEqual(assessment_item.assessment_id, assessment_id)
+            self.assertEqual(assessment_item.order, data["order"])
             self.assertEqual(assessment_item.type, data["type"])
             self.assertEqual(assessment_item.question, data.get("question", ""))
             self.assertEqual(assessment_item.randomize, bool(data.get("randomize")))
